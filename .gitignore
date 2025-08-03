@@ -1,0 +1,70 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+# C extensions
+*.so
+
+# VSCode settings
+.vscode/
+
+# Virtual environments
+projenv/
+venv/
+ENV/
+env/
+.venv/
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Docker
+*.log
+*.pid
+*.bak
+*.swp
+docker-compose.override.yml
+
+# Test logs / coverage / pytest
+htmlcov/
+.tox/
+.nox/
+.coverage
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+hypothesis/
+.pytest_cache/
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+coverage/
+*.log
+
+# Ignore known_faces images if they're not needed in version control
+known_faces/
+
+# Ignore data/output folders if any exist
+output/
+data/
