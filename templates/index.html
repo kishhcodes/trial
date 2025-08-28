@@ -1,69 +1,155 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Face & Emotion Monitor</title>
-  <link rel="stylesheet" href="/static/style.css">
-  <style>
-    body {
-      text-align: center;
-    }
-    img {
-      border: 3px solid #555;
-      border-radius: 10px;
-      margin-bottom: 20px;
-    }
-    .status {
-      font-size: 1.2em;
-      margin-top: 10px;
-      padding: 10px;
-      background: #fff;
-      display: inline-block;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
-  </style>
+    <title>Face Attention & Emotion</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+            text-align: center;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            border-radius: 5px;
+        }
+        h1 {
+            color: #333;
+        }
+        .video-container {
+            margin: 20px auto;
+            width: 100%;
+            max-width: 640px;
+            border: 1px solid #ccc;
+            overflow: hidden;
+        }
+        #video-feed {
+            width: 100%;
+            height: auto;
+        }
+        .status-container {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f8f8f8;
+            border-radius: 5px;
+        }
+        .status-item {
+            margin: 10px 0;
+        }
+        .status-label {
+            font-weight: bold;
+        }
+        #break-suggestion {
+            display: none;
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+            border-radius: 5px;
+        }
+    </style>
 </head>
 <body>
-  <h1>🎥 Live Face & Emotion Feed</h1>
-  <img src="/video_feed" width="640" height="480" alt="Webcam Feed">
-  
-  <div class="status" id="status-info">
-    Loading status...
-  </div>
+    <div class="container">
+        <h1>Face Attention & Emotion Monitoring</h1>
+        
+        <div class="video-container">
+            <img id="video-feed" src="/video_feed" alt="Video Feed">
+        </div>
+        
+        <div class="status-container">
+            <div class="status-item">
+                <span class="status-label">Attention:</span>
+                <span id="attention-status">Loading...</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Face:</span>
+                <span id="face-status">Loading...</span>
+            </div>
+        </div>
+        
+        <div id="break-suggestion">
+            <strong>Suggestion:</strong> It looks like you might need a break. Consider taking a short break to relax.
+        </div>
+    </div>
 
-  <script>
-    async function fetchStatus() {
-      try {
-        const response = await fetch('/status');
-        const data = await response.json();
-        document.getElementById('status-info').innerHTML = `
-          <strong>Emotion:</strong> ${data.emotion} <br>
-          <strong>Attention:</strong> ${data.attention} <br>
-          <strong>Face:</strong> ${data.face.name} (${data.face.recognized ? "Recognized" : "Unrecognized"}) <br>
-          ${data.should_break ? "<span style='color:red;'>💤 Suggest taking a break!</span>" : ""}
-        `;
-      } catch (error) {
-        document.getElementById('status-info').textContent = 'Failed to load status.';
-      }
-    }
-
-    setInterval(fetchStatus, 3000); // update every 3 seconds
-    fetchStatus(); // initial load
-  </script>
-  <script>
-    // Check for redirect every 2 seconds
-    setInterval(function() {
-        fetch('/check_redirect')
-            .then(response => response.json())
-            .then(data => {
-                if (data.redirect) {
-                    window.location.href = '/break_page';
-                }
-            })
-            .catch(error => console.error('Error checking redirect status:', error));
-    }, 2000);
-  </script>
+    <script>
+        // More aggressive redirect checking
+        let lastRedirectCheck = 0;
+        let redirectCheckCount = 0;
+        
+        function checkRedirect() {
+            // Check more frequently than status updates - every 500ms
+            fetch('/api/status')
+                .then(response => response.json())
+                .then(data => {
+                    // Only log once per second to avoid console spam
+                    const now = Date.now();
+                    if (now - lastRedirectCheck > 1000) {
+                        console.log("Redirect check:", data.redirect, "Triggered:", data.redirect_triggered);
+                        lastRedirectCheck = now;
+                    }
+                    
+                    if (data.redirect || data.redirect_triggered) {
+                        redirectCheckCount++;
+                        
+                        // Log every count
+                        console.log(`Redirect detected (${redirectCheckCount}/2)`);
+                        
+                        // Require only 2 positive checks for faster response
+                        if (redirectCheckCount >= 2) {
+                            console.log("⚠️ REDIRECT CONFIRMED! Going to break page...");
+                            window.location.href = '/break_page';
+                            return;
+                        }
+                    } else {
+                        // Reset counter if no redirect detected
+                        if (redirectCheckCount > 0) {
+                            console.log("Redirect no longer detected, resetting counter");
+                            redirectCheckCount = 0;
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error("Error checking redirect:", error);
+                });
+        }
+        
+        // Regular status updates (less frequent)
+        function updateStatus() {
+            fetch('/api/status')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('attention-status').textContent = data.attention || 'Unknown';
+                    document.getElementById('face-status').textContent = data.face.name || 'Unknown';
+                    
+                    // Also check redirect here as backup
+                    if (data.redirect) {
+                        console.log("Redirect detected in status update!");
+                        window.location.href = '/break_page';
+                    }
+                })
+                .catch(error => console.error('Error updating status:', error));
+        }
+        
+        // Start status updates and redirect checking
+        window.addEventListener('load', function() {
+            // Regular status updates every 2 seconds
+            setInterval(updateStatus, 2000);
+            
+            // More frequent redirect checks
+            setInterval(checkRedirect, 500);
+            
+            // Check immediately on load
+            updateStatus();
+            checkRedirect();
+        });
+    </script>
 </body>
 </html>

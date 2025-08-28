@@ -68,3 +68,4 @@ known_faces/
 # Ignore data/output folders if any exist
 output/
 data/
+logs/

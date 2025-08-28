@@ -67,6 +67,19 @@
     </div>
 
     <script>
+        // Reset redirect flag and counters when break page loads
+        window.addEventListener('load', function() {
+            console.log("Break page loaded, resetting redirect flag...");
+            fetch('/reset_redirect')
+                .then(response => response.json())
+                .then(data => {
+                    console.log("Reset redirect response:", data);
+                })
+                .catch(error => {
+                    console.error('Error resetting redirect:', error);
+                });
+        });
+        
         // Set up a 5-minute timer
         let timeLeft = 2 * 60; // 5 minutes in seconds
         const timerElement = document.getElementById('timer');
@@ -88,7 +101,28 @@
         
         function skipBreak() {
             clearInterval(timer);
-            window.location.href = '/watch';
+            
+            // First reset the redirect flag and distraction counter
+            fetch('/api/reset_redirect')
+                .then(response => response.json())
+                .then(data => {
+                    console.log("Reset redirect status:", data);
+                    
+                    // Then set monitoring mode active
+                    return fetch('/set_monitoring_active');
+                })
+                .then(() => {
+                    // Add a short delay to ensure all flags are reset
+                    setTimeout(() => {
+                        console.log("Returning to monitoring page");
+                        window.location.href = '/watch';
+                    }, 500);
+                })
+                .catch(error => {
+                    console.error('Error in break completion:', error);
+                    // Redirect anyway after a delay
+                    setTimeout(() => window.location.href = '/watch', 1000);
+                });
         }
     </script>
 </body>

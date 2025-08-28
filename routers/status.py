@@ -1,18 +1,22 @@
 from fastapi import APIRouter
-from services.camera_service import get_status
+from services.camera_service import get_status, reset_redirect_flag
+from services.attention_service import reset_distraction_counter
 
 router = APIRouter(
-    prefix="",  # Change from "/api" to empty string to match original URL paths
+    prefix="/api",
     tags=["Status"]
 )
 
 @router.get("/status")
-def status():
-    """Return the current status of attention and emotion"""
+async def get_current_status():
     return get_status()
 
-@router.get("/check_redirect")
-def check_redirect():
-    """Endpoint for the frontend to check if a redirect is needed"""
-    status_data = get_status()
-    return {"redirect": status_data.get("redirect", False)}
+@router.get("/reset_redirect")
+async def reset_redirect():
+    """Reset the redirect flag after user confirms they're ready to continue"""
+    was_redirecting = reset_redirect_flag()
+    
+    # Also reset the distraction counter to prevent immediate redirect
+    reset_distraction_counter()
+    
+    return {"was_redirecting": was_redirecting, "counter_reset": True}
