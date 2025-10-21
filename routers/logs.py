@@ -4,6 +4,11 @@ import os
 import json
 from typing import Optional
 from services.attention_service import DISTRACTION_LOG_FILE, USER_LOGS_DIR
+# Import MongoDB adapters
+from services.mongo_adapter import (
+    mongo_get_user_sessions,
+    mongo_get_user_distraction_events
+)
 
 router = APIRouter(
     prefix="/api",
@@ -176,3 +181,75 @@ async def list_user_logs():
         return {"user_logs": log_files}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error listing user logs: {str(e)}")
+
+# MongoDB specific endpoints
+@router.get("/mongodb/users/{username}/sessions")
+async def get_mongodb_user_sessions(username: str):
+    """Get user session data from MongoDB"""
+    try:
+        sessions = mongo_get_user_sessions(username)
+        if sessions and len(sessions) > 0:
+            return {
+                "username": username,
+                "sessions": sessions,
+                "total_sessions": len(sessions),
+                "source": "mongodb"
+            }
+        else:
+            return {"error": f"No MongoDB sessions found for user '{username}'"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"MongoDB error: {str(e)}")
+
+@router.get("/mongodb/users/{username}/events")
+async def get_mongodb_user_events(username: str, session_id: Optional[str] = None):
+    """Get user distraction events from MongoDB, optionally filtered by session ID"""
+    try:
+        events = mongo_get_user_distraction_events(username, session_id)
+        if events and len(events) > 0:
+            return {
+                "username": username,
+                "events": events,
+                "total_events": len(events),
+                "session_id": session_id,
+                "source": "mongodb"
+            }
+        else:
+            return {"error": f"No MongoDB events found for user '{username}'"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"MongoDB error: {str(e)}")
+
+@router.get("/mongodb/status")
+async def get_mongodb_status():
+    """Check MongoDB connection status"""
+    try:
+        from services import mongo_service
+        
+        # Try to connect and get status
+        is_connected = mongo_service.connect_to_mongodb()
+        
+        if is_connected:
+            # Get some basic stats if connected
+            users_collection = mongo_service.get_collection(mongo_service.USERS_COLLECTION)
+            sessions_collection = mongo_service.get_collection(mongo_service.SESSIONS_COLLECTION)
+            events_collection = mongo_service.get_collection(mongo_service.DISTRACTION_EVENTS_COLLECTION)
+            
+            return {
+                "status": "connected",
+                "database": mongo_service.MONGO_DB_NAME,
+                "collections": {
+                    "users": users_collection.count_documents({}) if users_collection is not None else 0,
+                    "sessions": sessions_collection.count_documents({}) if sessions_collection is not None else 0,
+                    "events": events_collection.count_documents({}) if events_collection is not None else 0
+                }
+            }
+        else:
+            return {
+                "status": "disconnected",
+                "database": mongo_service.MONGO_DB_NAME,
+                "error": "Failed to connect to MongoDB"
+            }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": str(e)
+        }

@@ -5,6 +5,8 @@ import time
 import json
 import os
 from datetime import datetime
+# Import MongoDB service for dual logging
+from services import mongo_service
 
 mp_face_mesh = mp.solutions.face_mesh
 # Use static_image_mode=False for better tracking
@@ -700,6 +702,15 @@ def start_user_session(username):
         user_log["sessions"].append(session.copy())
         user_log["stats"]["total_sessions"] += 1
         save_user_log(username, user_log)
+    
+    # Log to MongoDB as well
+    try:
+        mongo_session_id = mongo_service.start_user_session(username)
+        if mongo_session_id:
+            # Store MongoDB session ID in our active_user_sessions for reference
+            session["mongo_session_id"] = mongo_session_id
+    except Exception as e:
+        print(f"MongoDB session logging failed: {e}, continuing with JSON logging only")
     
     # Save main log too
     save_distraction_log(distraction_log)

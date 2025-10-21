@@ -55,7 +55,25 @@ async def startup_event():
         "description": "Face attention monitoring system"
     }
     save_distraction_log(distraction_log)
-    print("Application started, session logged")
+    
+    # Apply MongoDB integration patches
+    try:
+        from services.attention_mongo_patch import apply_mongodb_patches
+        apply_mongodb_patches()
+        
+        # Log application startup to MongoDB
+        from services.mongo_adapter import mongo_log_app_startup
+        mongo_startup_id = mongo_log_app_startup(
+            version="1.0",
+            description="Face attention monitoring system"
+        )
+        # Store MongoDB startup ID in the distraction log for reference
+        if mongo_startup_id:
+            current_session["mongo_startup_id"] = mongo_startup_id
+            save_distraction_log(distraction_log)
+        print("Application started, session logged in both JSON and MongoDB")
+    except Exception as e:
+        print(f"MongoDB integration failed: {e}, continuing with JSON logging only")
 
 @app.on_event("shutdown")
 def shutdown_event():
@@ -63,6 +81,18 @@ def shutdown_event():
     # Log application shutdown
     current_session = distraction_log["sessions"][-1]
     current_session["app_shutdown"] = datetime.now().isoformat()
+    
+    # Also log to MongoDB
+    try:
+        from services.mongo_adapter import mongo_log_app_shutdown
+        mongo_startup_id = current_session.get("mongo_startup_id")
+        if mongo_startup_id:
+            mongo_log_app_shutdown(startup_id=mongo_startup_id)
+        else:
+            mongo_log_app_shutdown()
+        print("Application shutdown logged in MongoDB")
+    except Exception as e:
+        print(f"MongoDB logging on shutdown failed: {e}")
     
     # Calculate session duration
     if "app_startup" in current_session:
